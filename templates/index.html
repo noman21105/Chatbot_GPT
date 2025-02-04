@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chatbot</title>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      display: flex;
+      height: 100vh;
+      justify-content: center;
+      align-items: center;
+      background-color: #f7f7f8;
+    }
+
+    /* Main Chat Container */
+    #main-container {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      max-width: 600px;
+      height: 90%;
+      border-radius: 10px;
+      box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Bottom Div for Chat Messages */
+    #chat-container {
+      background-color: white;
+      padding: 20px;
+      height: 90%; /* Adjusted height */
+      overflow-y: auto;
+      border-radius: 10px;
+      box-shadow: 0px -4px 10px rgba(0, 0, 0, 0.1);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Input Bar */
+    #input-bar-container {
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      width: 95%;
+      padding: 10px;
+      justify-content: space-between;
+      background-color: white;
+      border-top: 1px solid #ddd;
+      max-width: 600px;
+      border-radius: 10px;
+      box-shadow: 0px -4px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    #input-bar {
+      width: 80%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      font-size: 16px;
+      outline: none;
+      box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.3); /* Thicker shadow */
+    }
+
+    /* Mic Button Styling */
+    #mic-btn {
+      background-color: black;
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 50%;
+      font-size: 24px;
+      cursor: pointer;
+      box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.3); /* Thicker shadow */
+    }
+
+    /* Send Button Circle Styling with Font Awesome icon */
+    #send-btn {
+      font-size: 24px; /* Set a size for the icon */
+      padding: 12px;
+      border-radius: 50%;
+      background-color: black;
+      color: white;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.3); /* Thicker shadow */
+    }
+
+    /* Chat Messages */
+    .message {
+      margin-bottom: 15px;
+      padding: 10px;
+      border-radius: 8px;
+      max-width: 80%;
+      box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .user-message {
+      background-color: black;
+      color: white;
+      align-self: flex-end;
+      border-radius: 10px;
+      display: inline-block;
+      word-wrap: break-word;
+      white-space: pre-wrap;
+    }
+
+    .bot-message {
+      background-color: #f1f1f1;
+      color: black;
+      align-self: flex-start;
+      border-radius: 10px;
+      display: inline-block;
+      word-wrap: break-word;
+      white-space: pre-wrap;
+    }
+
+    /* Bold Styling */
+    .bold {
+      font-weight: bold;
+    }
+
+    /* Heading and Subheading Styles */
+    .heading {
+      font-size: 1.5em;
+      font-weight: bold;
+      margin-top: 20px;
+      text-align: center;
+    }
+
+    .subheading {
+      font-size: 1.2em;
+      font-weight: bold;
+      margin-top: 10px;
+      text-align: center;
+    }
+
+    /* Indentation and Spacing */
+    .point {
+      margin-left: 20px;
+      margin-top: 5px;
+      font-weight: normal;
+      line-height: 1.6;
+    }
+
+  </style>
+</head>
+<body>
+
+  <!-- Main Container -->
+  <div id="main-container">
+    <!-- Chat Container -->
+    <div id="chat-container">
+      <!-- Chat messages will appear here -->
+    </div>
+  </div>
+
+  <!-- Input Bar -->
+  <div id="input-bar-container">
+    <input id="input-bar" type="text" placeholder="Type your message here..." />
+    <!-- Replaced mic button with Font Awesome microphone icon -->
+    <button id="mic-btn"><i class="fas fa-microphone"></i></button>
+    <!-- Send Button with Paper Plane Icon -->
+    <button id="send-btn"><i class="fas fa-paper-plane"></i></button>
+  </div>
+
+  <script>
+    // Elements
+    const chatBox = $('#chat-container');
+    const inputBar = $('#input-bar');
+    const sendBtn = $('#send-btn');
+    const micBtn = $('#mic-btn');
+
+    // Function to send message to server and display the bot's response
+    function sendMessageToServer(message) {
+      $.ajax({
+        url: '/send_message',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ message: message }),
+        success: function(response) {
+          const botResponse = response.response;
+          displayMessage(botResponse, 'bot');
+          playAudio(botResponse); // Play bot's audio response
+        }
+      });
+    }
+
+    // Function to display message in chat box with point numbers and bold points
+    function displayMessage(message, sender) {
+      // Parse message to format points and make them bold
+      let formattedMessage = formatMessage(message);
+
+      const newMessage = `<div class="message ${sender}-message">${formattedMessage}</div>`;
+      chatBox.append(newMessage);
+      chatBox.scrollTop(chatBox[0].scrollHeight);
+    }
+
+    // Function to format message and apply bold and point numbers
+    function formatMessage(message) {
+      let formattedMessage = message;
+
+      // Match headings and subheadings
+      formattedMessage = formattedMessage.replace(/^# (.*)/gm, '<div class="heading">$1</div>');
+      formattedMessage = formattedMessage.replace(/^## (.*)/gm, '<div class="subheading">$1</div>');
+
+      // Match bold text and apply bold class
+      formattedMessage = formattedMessage.replace(/\*\*(.*?)\*\*/g, function(match, p1) {
+        return `<span class="bold">${p1}</span>`;
+      });
+
+      // Add indentation and format points
+      formattedMessage = formattedMessage.replace(/^([0-9]+\.)(.*)/gm, function(match, p1, p2) {
+        return `<div class="point">${p1.trim()} ${p2.trim()}</div>`;
+      });
+
+      return formattedMessage;
+    }
+
+    // Function to play audio from the bot's response and slow down the speech
+    function playAudio(text) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      
+      // Set the rate (speed) of speech. Default is 1, where 0.5 is slower and 2 is faster.
+      utterance.rate = 0.8; // Adjust this value as per your needs
+      
+      // Optional: Set the pitch and volume
+      utterance.pitch = 1.8; // Default is 1 (normal pitch)
+      utterance.volume = 1; // Default is 1 (normal volume)
+
+      // Speak the text aloud
+      window.speechSynthesis.speak(utterance);
+    }
+
+    // Send message on clicking the send button
+    sendBtn.click(function() {
+      const message = inputBar.val().trim();
+      if (message) {
+        displayMessage(message, 'user');
+        inputBar.val(''); // Clear input field
+        sendMessageToServer(message); // Send message to the server
+      }
+    });
+
+    // Send message on pressing "Enter"
+    inputBar.keypress(function(e) {
+      if (e.which === 13) {
+        e.preventDefault();
+        sendBtn.click();
+      }
+    });
+
+    // Record and convert speech to text
+    micBtn.click(function() {
+      const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      recognition.lang = 'en-US';
+      recognition.onresult = function(event) {
+        const transcript = event.results[0][0].transcript;
+        displayMessage(transcript, 'user');
+        sendMessageToServer(transcript);
+      };
+      recognition.start();
+    });
+  </script>
+
+</body>
+</html>
